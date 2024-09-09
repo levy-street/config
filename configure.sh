@@ -37,4 +37,42 @@ fi
 
 echo "Prompt color changed in .bashrc"
 
+# 4. Ask if user wants to install Docker
+read -p "Do you want to install Docker? (y/n): " install_docker
+
+if [ "$install_docker" = "y" ]; then
+  echo "Installing Docker..."
+
+  # Update the apt package index
+  apt-get update -y
+
+  # Install packages to allow apt to use a repository over HTTPS
+  apt-get install -y ca-certificates curl
+
+  # Add Docker's official GPG key
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  chmod a+r /etc/apt/keyrings/docker.asc
+
+  # Add the repository to Apt sources
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  # Update the apt package index again
+  apt-get update -y
+
+  # Install Docker Engine, containerd, and Docker Compose
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+  # Create the docker group if it doesn't exist
+  groupadd -f docker
+
+  echo "Docker installation completed"
+else
+  echo "Docker installation skipped"
+fi
+
+
 echo "Configuration complete. Please log out and log back in for all changes to take effect."
