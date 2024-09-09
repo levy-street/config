@@ -1,15 +1,31 @@
 #!/bin/bash
 
 # Check if script is run as root
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root"
-  exit
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
 fi
 
 # 1. Change hostname
-read -p "Enter new hostname: " new_hostname
-hostnamectl set-hostname $new_hostname
-echo "Hostname changed to $new_hostname"
+read -p "Enter new hostname (leave blank to keep current hostname): " new_hostname
+if [ -n "$new_hostname" ]; then
+  # Set the hostname using hostnamectl
+  hostnamectl set-hostname "$new_hostname"
+
+  # Update /etc/hosts file
+  sed -i "s/127.0.1.1.*/127.0.1.1\t$new_hostname/" /etc/hosts
+
+  # Verify the change
+  current_hostname=$(hostnamectl --static)
+  if [ "$current_hostname" = "$new_hostname" ]; then
+    echo "Hostname successfully changed to $new_hostname"
+  else
+    echo "Failed to change hostname. Current hostname is still $current_hostname"
+  fi
+else
+  current_hostname=$(hostnamectl --static)
+  echo "Keeping current hostname: $current_hostname"
+fi
 
 # 2. Download authorized_keys file from GitHub
 github_url="https://raw.githubusercontent.com/levy-street/config/main/authorized_keys"
@@ -21,26 +37,27 @@ curl -o $keys_file $github_url
 if [ $? -eq 0 ]; then
   echo "authorized_keys file downloaded successfully"
   chmod 600 $keys_file
+  chown ubuntu:ubuntu $keys_file
 else
   echo "Failed to download authorized_keys file"
 fi
 
-# 3. Change prompt color in .bashrc
+# 3. Append new prompt color setting to .bashrc
 bashrc_file="/home/ubuntu/.bashrc"
-new_ps1='PS1='"'"'${debian_chroot:+($debian_chroot)}\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '"'"
+new_ps1='PS1="\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "'
 
-if grep -q "PS1=" $bashrc_file; then
-  sed -i '/PS1=/c\'"$new_ps1" $bashrc_file
-else
-  echo $new_ps1 >> $bashrc_file
+echo "" >> $bashrc_file
+echo "# Custom prompt color" >> $bashrc_file
+echo $new_ps1 >> $bashrc_file
+
+echo "New prompt color setting appended to .bashrc"
+
+# 4. Ask about Docker installation
+if [ -z "$INSTALL_DOCKER" ]; then
+  read -p "Do you want to install Docker? (y/n): " INSTALL_DOCKER
 fi
 
-echo "Prompt color changed in .bashrc"
-
-# 4. Ask if user wants to install Docker
-read -p "Do you want to install Docker? (y/n): " install_docker
-
-if [ "$install_docker" = "y" ]; then
+if [ "$INSTALL_DOCKER" = "y" ]; then
   echo "Installing Docker..."
 
   # Update the apt package index
@@ -69,10 +86,12 @@ if [ "$install_docker" = "y" ]; then
   # Create the docker group if it doesn't exist
   groupadd -f docker
 
+  # Add ubuntu user to the docker group
+  usermod -aG docker ubuntu
+
   echo "Docker installation completed"
 else
   echo "Docker installation skipped"
 fi
-
 
 echo "Configuration complete. Please log out and log back in for all changes to take effect."
