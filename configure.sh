@@ -110,14 +110,36 @@ echo $new_ps1 >> $bashrc_file
 echo "New prompt color setting appended to .bashrc"
 
 # 5. Ask about Docker installation
-if [ -z "$INSTALL_DOCKER" ]; then
-  read -p "Do you want to install Docker? (y/n): " INSTALL_DOCKER
-fi
+read -p "Do you want to install Docker? (y/n): " INSTALL_DOCKER
 
 if [ "$INSTALL_DOCKER" = "y" ]; then
   echo "Installing Docker..."
 
-  # [Docker installation steps remain the same]
+  # Update the apt package index
+  apt-get update
+
+  # Install packages to allow apt to use a repository over HTTPS
+  apt-get install -y \
+      apt-transport-https \
+      ca-certificates \
+      curl \
+      gnupg \
+      lsb-release
+
+  # Add Docker's official GPG key
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+  # Set up the stable repository
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  # Install Docker Engine
+  apt-get update
+  apt-get install -y docker-ce docker-ce-cli containerd.io
+
+  # Add ubuntu user to the docker group
+  usermod -aG docker ubuntu
 
   echo "Docker installation completed"
 else
