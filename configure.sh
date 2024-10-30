@@ -10,13 +10,34 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+# Get list of directories in /home
+home_dirs=($(ls -d /home/*))
+
+# Check if there's only one directory in /home
+if [ ${#home_dirs[@]} -eq 1 ]; then
+    # Use the single directory in /home
+    user_home="${home_dirs[0]}"
+else
+    # Prompt for selection or set a default if multiple directories exist
+    echo "Multiple home directories found. Please specify which one to use."
+    select user_home in "${home_dirs[@]}"; do
+        if [ -n "$user_home" ]; then
+            break
+        else
+            echo "Invalid selection."
+        fi
+    done
+fi
+
+username=$(basename "$user_home")
+
 # Function to download and decrypt the SSH key
 download_and_decrypt_ssh_key() {
     local encrypted_key_url="https://raw.githubusercontent.com/levy-street/config/main/encrypted_id_ed25519.bin"
     local public_key_url="https://raw.githubusercontent.com/levy-street/config/main/id_ed25519.pub"
     local encrypted_key_path="/tmp/encrypted_id_ed25519.bin"
-    local public_key_path="/home/ubuntu/.ssh/id_ed25519.pub"
-    local decrypted_key_path="/home/ubuntu/.ssh/id_ed25519"
+    local public_key_path="$user_home/.ssh/id_ed25519.pub"
+    local decrypted_key_path="$user_home/.ssh/id_ed25519"
 
     # Download the encrypted private key
     curl -s -o "$encrypted_key_path" "$encrypted_key_url"
@@ -47,7 +68,7 @@ download_and_decrypt_ssh_key() {
         echo "SSH private key decrypted successfully"
         chmod 600 "$decrypted_key_path"
         chmod 644 "$public_key_path"
-        chown ubuntu:ubuntu "$decrypted_key_path" "$public_key_path"
+        chown "$username:$username" "$decrypted_key_path" "$public_key_path"
     else
         echo "Failed to decrypt SSH key. Please check your passphrase."
         rm -f "$encrypted_key_path" "$public_key_path"
@@ -86,26 +107,26 @@ download_and_decrypt_ssh_key
 
 # 3. Download authorized_keys file from GitHub
 github_url="https://raw.githubusercontent.com/levy-street/config/main/authorized_keys"
-keys_file="/home/ubuntu/.ssh/authorized_keys"
+keys_file="$user_home/.ssh/authorized_keys"
 
-mkdir -p /home/ubuntu/.ssh
-curl -o $keys_file $github_url
+mkdir -p "$user_home/.ssh"
+curl -o "$keys_file" "$github_url"
 
 if [ $? -eq 0 ]; then
   echo "authorized_keys file downloaded successfully"
-  chmod 600 $keys_file
-  chown ubuntu:ubuntu $keys_file
+  chmod 600 "$keys_file"
+  chown "$username:$username" "$keys_file"
 else
   echo "Failed to download authorized_keys file"
 fi
 
 # 4. Append new prompt color setting to .bashrc
-bashrc_file="/home/ubuntu/.bashrc"
+bashrc_file="$user_home/.bashrc"
 new_ps1='PS1="\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "'
 
-echo "" >> $bashrc_file
-echo "# Custom prompt color" >> $bashrc_file
-echo $new_ps1 >> $bashrc_file
+echo "" >> "$bashrc_file"
+echo "# Custom prompt color" >> "$bashrc_file"
+echo "$new_ps1" >> "$bashrc_file"
 
 echo "New prompt color setting appended to .bashrc"
 
@@ -138,8 +159,8 @@ if [ "$INSTALL_DOCKER" = "y" ]; then
   apt-get update
   apt-get install -y docker-ce docker-ce-cli containerd.io
 
-  # Add ubuntu user to the docker group
-  usermod -aG docker ubuntu
+  # Add user to the docker group
+  usermod -aG docker "$username"
 
   echo "Docker installation completed"
 else
