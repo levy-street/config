@@ -31,6 +31,23 @@ fi
 
 username=$(basename "$user_home")
 
+# Function to install essential system packages
+install_system_packages() {
+    echo "Installing essential system packages..."
+    apt-get update
+    apt-get install -y \
+        make \
+        htop \
+        vim \
+        git \
+        curl \
+        wget \
+        unzip \
+        build-essential \
+        software-properties-common
+    echo "System packages installed successfully"
+}
+
 # Function to download and decrypt the SSH key
 download_and_decrypt_ssh_key() {
     local encrypted_key_url="https://raw.githubusercontent.com/levy-street/config/main/encrypted_id_ed25519.bin"
@@ -102,10 +119,13 @@ else
   echo "Keeping current hostname: $current_hostname"
 fi
 
-# 2. Download and decrypt SSH key
+# 2. Install essential system packages
+install_system_packages
+
+# 3. Download and decrypt SSH key
 download_and_decrypt_ssh_key
 
-# 3. Download authorized_keys file from GitHub
+# 4. Download authorized_keys file from GitHub
 github_url="https://raw.githubusercontent.com/levy-street/config/main/authorized_keys"
 keys_file="$user_home/.ssh/authorized_keys"
 
@@ -120,9 +140,9 @@ else
   echo "Failed to download authorized_keys file"
 fi
 
-# 4. Append new prompt color setting to .bashrc
+# 5. Append new prompt color setting to .bashrc
 bashrc_file="$user_home/.bashrc"
-new_ps1='PS1="\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "'
+new_ps1='PS1="\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\ $ "'
 
 echo "" >> "$bashrc_file"
 echo "# Custom prompt color" >> "$bashrc_file"
@@ -130,7 +150,7 @@ echo "$new_ps1" >> "$bashrc_file"
 
 echo "New prompt color setting appended to .bashrc"
 
-# 5. Ask about Docker installation
+# 6. Ask about Docker installation
 read -p "Do you want to install Docker? (y/n): " INSTALL_DOCKER
 
 if [ "$INSTALL_DOCKER" = "y" ]; then
