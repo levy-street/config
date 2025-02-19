@@ -140,9 +140,23 @@ else
   echo "Failed to download authorized_keys file"
 fi
 
-# 5. Append new prompt color setting to .bashrc
+# 5. Choose prompt color and append new prompt setting to .bashrc
+echo "Choose your prompt color:"
+echo "1) Red"
+echo "2) Green"
+read -p "Enter 1 or 2: " color_choice
+
+if [ "$color_choice" = "2" ]; then
+  # Green prompt: \033[01;32m for username@host and \033[01;34m for working directory
+  new_ps1='PS1="\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\ $ "'
+  echo "Green prompt selected."
+else
+  # Default to red prompt: \033[01;31m for username@host and \033[01;34m for working directory
+  new_ps1='PS1="\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\ $ "'
+  echo "Red prompt selected."
+fi
+
 bashrc_file="$user_home/.bashrc"
-new_ps1='PS1="\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\ $ "'
 
 echo "" >> "$bashrc_file"
 echo "# Custom prompt color" >> "$bashrc_file"
